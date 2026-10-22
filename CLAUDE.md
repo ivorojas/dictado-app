@@ -128,6 +128,11 @@ icono.ico      ícono (degradé cian→violeta con barras de onda), generado por
   si otra app toma el dispositivo). Síntoma en el log: `[stt] proceso 0.01s` con audio de varios segundos y
   `[stt] ''`. Ahora: `pico < 1e-5` → refresh de PortAudio + sonido de error + notificación; aviso a los 3s si
   sigue muerto; si el VAD descarta todo, reintento con VAD sensible (threshold 0.25).
+- **Sonidos al instante (v1.3.8)**: `sd.play` por defecto va por MME = 180 ms de búfer (medido); con los
+  auriculares Bluetooth del dueño (REDMI Buds) se sentía ~0.5 s tarde. `sounds._output` usa WASAPI compartido
+  (22 ms) SOLO si es el mismo dispositivo que MME (sale donde siempre); si no, MME latency="low" (91 ms).
+  Los sonidos se convierten a 48 kHz al cargar el pack (`sounds.warm`). Mic: abre en ~80 ms, ok. El sonido
+  de fin es al PEGAR (al apretar F9 para cortar no suena nada): el dueño lo quiere así.
 - **Portapapeles**: `OpenClipboard` se reintenta (otra app puede tenerlo tomado); si falla, no se pega y se
   avisa (el texto queda en Historial). Se restaura a 1s (apps lentas leían tarde y pegaban lo viejo).
 - **ctypes 64-bit**: TODA llamada Win32 que devuelve/recibe HANDLE/puntero lleva `restype`/`argtypes`
