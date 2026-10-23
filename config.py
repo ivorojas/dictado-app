@@ -71,6 +71,7 @@ class Config:
 
     # Sonidos: pack elegido (ver sounds.PACKS)
     sound_pack: str = "suave"
+    start_sound: bool = False      # sonido al empezar a grabar (el de fin, al pegar, suena siempre)
 
     # Busca versiones nuevas en GitHub y se instala sola cuando no estás dictando (updater.py)
     auto_update: bool = True

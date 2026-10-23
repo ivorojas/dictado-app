@@ -204,7 +204,12 @@ def preview():
 
 
 def ready():  _play("ready")
-def start():  _play("start")
+start_enabled = False   # config.start_sound: el dueño lo apagó (con Bluetooth sonaba a destiempo)
+
+
+def start():
+    if start_enabled:
+        _play("start")
 def stop():   _play("stop")
 def done():   _play("done")
 def error():  _play("error")

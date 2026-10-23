@@ -133,6 +133,8 @@ icono.ico      ícono (degradé cian→violeta con barras de onda), generado por
   escuchaban "raros, lejos", aun con volumen al máximo (los sonidos son mono): VUELTA ATRÁS, no repetir. El
   dueño aceptó que no sea instantáneo (Bluetooth suma su demora). El sonido de fin es al PEGAR (al apretar F9
   para cortar no suena nada): lo quiere así.
+  v1.3.10: el sonido de EMPEZAR viene APAGADO (`config.start_sound`, `sounds.start_enabled`; Ajustes → Sonido al
+  empezar a grabar): "me molesta que suena a destiempo". El de fin y el de modo IA (F8) siguen.
 - **Portapapeles**: `OpenClipboard` se reintenta (otra app puede tenerlo tomado); si falla, no se pega y se
   avisa (el texto queda en Historial). Se restaura a 1s (apps lentas leían tarde y pegaban lo viejo).
 - **ctypes 64-bit**: TODA llamada Win32 que devuelve/recibe HANDLE/puntero lleva `restype`/`argtypes`

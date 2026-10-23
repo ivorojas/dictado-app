@@ -167,7 +167,7 @@ def sample_context():
                                              "sin tocar el teclado, con Whisper corriendo local."},
     ]
     cfg = SimpleNamespace(
-        mic_index=-1, hotkey="<f9>", hotkey_display="F9", open_hotkey="ctrl+f1", copy_hotkey="alt+f1", ai_hotkey="f10", ai_model="gemini-3.1-flash-lite", pc_role="auto",
+        mic_index=-1, hotkey="<f9>", hotkey_display="F9", open_hotkey="ctrl+f1", copy_hotkey="alt+f1", ai_hotkey="f10", start_sound=False, ai_model="gemini-3.1-flash-lite", pc_role="auto",
         sound_pack="suave",
         whisper_model="large-v3-turbo",
         overlay_preset="aurora", overlay_custom={}, overlay_mine=[], bar_intensity=0.8,
@@ -305,11 +305,17 @@ class SettingsView(_Toast):
         self.copy_keys.pack(fill="x")
         ui.separator(b).pack(fill="x", pady=18)
         ui.label(b, "Sonidos", F.body_sb).pack(anchor="w")
-        ui.label(b, "Al empezar, al terminar y si algo falla. Al elegir uno suena de muestra.",
+        ui.label(b, "Al terminar y si algo falla. Al elegir uno suena de muestra.",
                  F.small, ui.TEXT_3).pack(anchor="w", pady=(3, 12))
         ui.ChipGroup(b, [(name, pid) for pid, name in sounds.PACKS],
                      getattr(self.ctx.config, "sound_pack", "suave"), self._set_sound,
                      height=34).pack(fill="x")
+        ui.label(b, "Sonido al empezar a grabar", F.body_sb).pack(anchor="w", pady=(18, 0))
+        ui.label(b, "Graba igual desde que apretás la tecla. El sonido del final suena siempre.",
+                 F.small, ui.TEXT_3).pack(anchor="w", pady=(3, 12))
+        ui.Segmented(b, [("Sin sonido", "off"), ("Con sonido", "on")],
+                     "on" if getattr(self.ctx.config, "start_sound", False) else "off",
+                     self._set_start_sound, height=34).pack(anchor="w")
 
     def _set_mic(self, index):
         self.ctx.config.mic_index = index
@@ -409,6 +415,10 @@ class SettingsView(_Toast):
             self.ai_keys.set(old)
             self._toast(f"{globalkey.label(key)} ya lo usa otra app, elegí otra", ok=False)
             return
+        self._saved()
+
+    def _set_start_sound(self, value):
+        self.ctx.config.start_sound = sounds.start_enabled = value == "on"
         self._saved()
 
     def _set_sound(self, pack):

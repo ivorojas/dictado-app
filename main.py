@@ -193,6 +193,7 @@ def main():
     overlay.get_style = lambda: looks.current(config)   # estilo elegido en Ajustes
     overlay.get_intensity = lambda: config.bar_intensity
     sounds.set_pack(config.sound_pack)
+    sounds.start_enabled = config.start_sound
     ui.init(overlay.root)
 
     _busy = threading.Event()
