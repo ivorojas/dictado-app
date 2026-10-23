@@ -4,8 +4,6 @@ Hay varios packs para elegir en Ajustes. Cada sonido es una mezcla de senoidales
 con envolvente suave (ataque corto + decay) → sin clicks. "Silencio" no suena nada
 (los avisos de error igual aparecen como notificación).
 """
-import threading
-
 import numpy as np
 
 try:
@@ -180,66 +178,22 @@ _sounds = dict(_build("suave"), **_AI)
 
 def set_pack(name):
     global _sounds
-    _at_rate.clear()
     _sounds = _build(name if name in dict(PACKS) else "suave")
     if _sounds:
         _sounds.update(_AI)
-    threading.Thread(target=warm, daemon=True).start()
-
-
-def _output():
-    """(dispositivo, frecuencia) para que el sonido salga YA. Por defecto PortAudio usa MME, que
-    tiene 180 ms de búfer (medido; con auriculares Bluetooth se sumaba a su propia demora y se
-    sentía medio segundo tarde). WASAPI compartido: 22 ms. Solo si es el MISMO dispositivo que
-    usaría MME (el sonido sale donde siempre); si no, MME en baja latencia (91 ms)."""
-    try:
-        mme = sd.query_devices(kind="output")
-        for k, h in enumerate(sd.query_hostapis()):
-            if h["name"] == "Windows WASAPI" and h["default_output_device"] >= 0:
-                w = sd.query_devices(h["default_output_device"])
-                if w["name"].startswith(mme["name"].rstrip()):
-                    return h["default_output_device"], int(w["default_samplerate"])
-    except Exception:
-        pass
-    return None, _SR
-
-
-_at_rate = {}   # (sonido, frecuencia) → muestras ya convertidas (se vacía al cambiar de pack)
-
-
-def _to_rate(s, rate):
-    n = int(round(len(s) * rate / _SR))
-    return np.interp(np.linspace(0, len(s) - 1, n), np.arange(len(s)), s).astype(np.float32)
-
-
-def warm():
-    """Deja los sonidos ya convertidos a la frecuencia de la salida (el 1ro no espera ~20 ms)."""
-    dev, rate = _output()
-    if rate != _SR:
-        for key, s in list(_sounds.items()):
-            _at_rate.setdefault((key, rate), _to_rate(s, rate))
 
 
 def _play(key, s=None):
     s = _sounds.get(key) if s is None else s
     if sd is None or s is None:
         return
-    dev, rate = _output()
-    if rate == _SR:
-        data = s
-    elif key is None:
-        data = _to_rate(s, rate)
-    else:
-        data = _at_rate.get((key, rate))
-        if data is None:
-            data = _at_rate[(key, rate)] = _to_rate(s, rate)
+    # MME, el de siempre (sale igual en los dos auriculares). latency="low" = búfer de 91 ms en vez
+    # de 180: el mismo sonido, antes. v1.3.8 probó WASAPI (22 ms) y con los auriculares Bluetooth del
+    # dueño se escuchaba "raro, lejos" (mono por WASAPI): no volver a eso.
     try:
-        sd.play(data, rate, device=dev, latency="low")
+        sd.play(s, _SR, latency="low")
     except Exception:
-        try:
-            sd.play(s, _SR, latency="low")
-        except Exception:
-            pass
+        pass
 
 
 def preview():
