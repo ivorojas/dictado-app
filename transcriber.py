@@ -51,6 +51,36 @@ def is_noise(text: str) -> bool:
     return not t or t in _NOISE_WORDS
 
 
+# "Mayúscula" como PRIMERA o ÚLTIMA palabra del dictado = gritar: lo demás va todo en mayúsculas y
+# termina con muchos signos de exclamación (pedido del dueño, en cualquier idioma, también en modo IA).
+_WORD = r"(?:may[uú]sculas?|all\s+caps|caps|uppercase)"
+_CAPS_START = re.compile(r"^\s*[¡¿]?\s*" + _WORD + r"\b[\s,.:;!¡?-]*", re.I)
+_CAPS_END = re.compile(r"[\s,.:;!¡?-]*\b" + _WORD + r"[\s.!?]*$", re.I)
+# al final, "con mayúscula" / "en mayúsculas" / "in caps" es parte de la frase, no la orden
+_NOT_CMD = {"en", "con", "la", "las", "una", "de", "a", "in", "with", "the", "all"}
+
+
+def caps_command(text: str):
+    """Si el dictado empieza o termina con "mayúscula", el resto (sin esa palabra); si no, None."""
+    m = _CAPS_START.match(text)
+    if m:
+        rest = text[m.end():]
+    else:
+        m = _CAPS_END.search(text)
+        if not m:
+            return None
+        rest = text[:m.start()]
+        before = re.findall(r"[^\W\d_]+", rest.lower())
+        if before and before[-1] in _NOT_CMD:
+            return None
+    return rest.strip() or None
+
+
+def shout(text: str) -> str:
+    """TODO EN MAYÚSCULAS!!!!!! (con el espacio final de siempre para el próximo dictado)."""
+    return re.sub(r"[\s.!¡?¿…,;:]+$", "", text.strip()).upper() + "!!!!!! "
+
+
 def _strip_hallucinations(text: str) -> str:
     """Recorta del final los créditos de subtitulado que Whisper alucina sobre el
     silencio. Itera por si quedan varios apilados."""

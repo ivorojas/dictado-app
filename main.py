@@ -118,7 +118,7 @@ import ui
 from brand import APP_NAME, __version__, make_tray_icon
 from config import Config
 from recorder import NBANDS, Recorder
-from transcriber import Transcriber, is_noise
+from transcriber import Transcriber, caps_command, is_noise, shout
 from cleaner import Cleaner
 from injector import Injector, capture_foreground, copy_selection, wait_modifiers
 from overlay import Overlay
@@ -397,6 +397,10 @@ def main():
                         print("[stt] solo ruido (palabra inventada por Whisper): no se pega nada")
                         _fail("No se entendió nada del audio. Probá de nuevo.")
                         return
+                    loud = caps_command(raw)            # empezó con "mayúscula": todo gritado
+                    if loud is not None:
+                        raw = loud
+                        print("[stt] mayúsculas: se pega gritado")
                     use_ai = _rec["ai"]
                     if use_ai:
                         # Modo IA: el dictado es el PEDIDO; se pega lo que escribe Gemini.
@@ -419,6 +423,8 @@ def main():
                               f"({'sobre el texto seleccionado' if _rec['sel'] else 'de cero'})")
                     else:
                         text = cleaner.clean(raw)
+                    if loud is not None:
+                        text = shout(text)
                     history.add(text)               # respaldo, por si no se pega en ningún lado
                     if away and _peer() and remote.send({"t": "text", "text": text, "id": _rec["id"],
                                                          "ai": use_ai}):

@@ -13,3 +13,4 @@ venv/
 # Secrets / datos locales
 .env
 *.log
+PENDIENTES.md

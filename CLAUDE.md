@@ -211,6 +211,11 @@ icono.ico      ícono (degradé cian→violeta con barras de onda), generado por
   compilar pide Windows SDK + Vulkan SDK (instalación con admin).
 - **Primera descarga del modelo**: `_model_path` reintenta (WinError 1314 de symlinks de Hugging Face en
   Windows sin modo desarrollador). Antes, en una PC nueva, ese error hacía caer a CPU aunque hubiera GPU.
+- **"Mayúscula" al principio (v1.3.11, pedido del dueño)**: si la PRIMERA palabra del dictado es "mayúscula(s)"
+  (o caps / all caps / uppercase), se saca esa palabra y lo que sigue se pega TODO EN MAYÚSCULAS con "!!!!!!" al
+  final (`transcriber.caps_command` + `shout`, aplicado en `main.work`). Vale en español, inglés y modo IA (F8:
+  a Gemini va el pedido sin la palabra y se grita su respuesta). También como ÚLTIMA palabra ("me olvidé de
+  decirlo al principio"), salvo "con/en/in mayúscula(s)", que es parte de la frase. En el medio no.
 - **No usa la nube ni IA** para el dictado normal. Cleanup Gemini (cleaner.py) existe pero está OFF y oculto.
 - **MODO IA (v1.3.0, lo pidió el dueño)**: `ai.py`. Mientras grabás, la tecla `config.ai_hotkey` (F10; opciones
   F10/F8/F11/F7, globalkey.AI_OPTIONS) activa el modo IA en ESE dictado: se copia el texto seleccionado
