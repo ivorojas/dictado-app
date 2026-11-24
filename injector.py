@@ -202,7 +202,7 @@ user32.GetClipboardSequenceNumber.restype = wintypes.DWORD
 _TERMINALS = {"ConsoleWindowClass", "CASCADIA_HOSTING_WINDOW_CLASS", "mintty", "PuTTY", "VirtualConsoleClass"}
 
 
-def copy_selection(timeout=0.5):
+def copy_selection(timeout=0.5, strip=True):
     """Texto seleccionado en la ventana en foco (para el modo IA): manda Ctrl+C con scan codes
     y, si el portapapeles cambió, lo lee y lo deja como estaba. "" si no había selección.
     En terminales NO se manda Ctrl+C (ahí corta el programa que está corriendo)."""
@@ -229,7 +229,7 @@ def copy_selection(timeout=0.5):
             time.sleep(0.15)
             if user32.GetClipboardSequenceNumber() == mine:
                 break
-    return text.strip()
+    return text.strip() if strip else text
 
 
 def _clipboard_settle(quiet=0.12, limit=0.8):

@@ -118,7 +118,7 @@ import ui
 from brand import APP_NAME, __version__, make_tray_icon
 from config import Config
 from recorder import NBANDS, Recorder
-from transcriber import Transcriber, caps_command, is_noise, shout
+from transcriber import Transcriber, caps_command, caps_only, is_noise, shout
 from cleaner import Cleaner
 from injector import Injector, capture_foreground, copy_selection, wait_modifiers
 from overlay import Overlay
@@ -397,12 +397,29 @@ def main():
                         print("[stt] solo ruido (palabra inventada por Whisper): no se pega nada")
                         _fail("No se entendió nada del audio. Probá de nuevo.")
                         return
-                    loud = caps_command(raw)            # empezó con "mayúscula": todo gritado
+                    use_ai = _rec["ai"]
+                    upper_sel = caps_only(raw)          # dijo SOLO "mayúscula": lo seleccionado a MAYÚSCULAS
+                    loud = None if upper_sel else caps_command(raw)   # "mayúscula" + texto: gritado
                     if loud is not None:
                         raw = loud
                         print("[stt] mayúsculas: se pega gritado")
-                    use_ai = _rec["ai"]
-                    if use_ai:
+                    if upper_sel and away and not use_ai:
+                        # la selección está en la otra PC: allá la copia y la pega en mayúsculas
+                        if not (_peer() and remote.send({"t": "text", "text": "", "upper": True,
+                                                         "id": _rec["id"]})):
+                            sounds.error()
+                            _notify("No se pudo llegar a la otra PC.")
+                        return
+                    if upper_sel:
+                        if use_ai and _rec["sel_ready"] is not None:
+                            _rec["sel_ready"].wait(1.5)     # en modo IA ya se estaba copiando
+                        sel = _rec["sel"] if use_ai else copy_selection(strip=False)
+                        if not sel.strip():
+                            _fail('Seleccioná un texto antes de decir "mayúscula".')
+                            return
+                        text = sel.upper()
+                        print(f"[stt] mayúsculas: {len(sel)} caracteres seleccionados")
+                    elif use_ai:
                         # Modo IA: el dictado es el PEDIDO; se pega lo que escribe Gemini.
                         if _rec["sel_ready"] is not None:
                             _rec["sel_ready"].wait(1.5)     # la copia de la selección (2do plano)
@@ -567,6 +584,12 @@ def main():
                 _term["state"] = "hidden"
                 overlay.set_state("hidden")
                 set_rec_icon(False)
+            if data.get("upper"):                       # dijo solo "mayúscula": lo seleccionado acá
+                text = copy_selection(strip=False).upper()
+                if not text.strip():
+                    sounds.error()
+                    _notify('Seleccioná un texto antes de decir "mayúscula".')
+                    return
             if not text:
                 return
             history.add(text)

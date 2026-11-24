@@ -53,11 +53,20 @@ def is_noise(text: str) -> bool:
 
 # "Mayúscula" como PRIMERA o ÚLTIMA palabra del dictado = gritar: lo demás va todo en mayúsculas y
 # termina con muchos signos de exclamación (pedido del dueño, en cualquier idioma, también en modo IA).
-_WORD = r"(?:may[uú]sculas?|all\s+caps|caps|uppercase)"
+# "mayus", "mayús", "mayúscula(s)"... y como lo escucha mal Whisper ("Mascula", "Máscula",
+# "Mais cula"); en inglés caps / all caps / uppercase. "Más" solo NO (es una palabra común).
+_WORD = (r"(?:may[uú]s(?:c?ul[ao]s?)?|m[aá][iy]?[uú]?s\s?c?ul[ao]s?|"
+         r"all\s+caps|caps|uppercase)")
 _CAPS_START = re.compile(r"^\s*[¡¿]?\s*" + _WORD + r"\b[\s,.:;!¡?-]*", re.I)
+_CAPS_ONLY = re.compile(r"^[\s¡¿]*" + _WORD + r"[\s,.:;!¡?-]*$", re.I)
 _CAPS_END = re.compile(r"[\s,.:;!¡?-]*\b" + _WORD + r"[\s.!?]*$", re.I)
 # al final, "con mayúscula" / "en mayúsculas" / "in caps" es parte de la frase, no la orden
 _NOT_CMD = {"en", "con", "la", "las", "una", "de", "a", "in", "with", "the", "all"}
+
+
+def caps_only(text: str) -> bool:
+    """True si el dictado es SOLO "mayúscula" (o "mayus"...): pasar a mayúsculas lo seleccionado."""
+    return bool(_CAPS_ONLY.match(text))
 
 
 def caps_command(text: str):

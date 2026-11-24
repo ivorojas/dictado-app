@@ -29,6 +29,11 @@ def migrate_legacy_data():
                 pass
 
 
+# Herramientas que el dueño nombra seguido y Whisper escribía mal ("hotspot" en vez de HubSpot).
+_TERMS_V1 = ("HubSpot", "GoHighLevel", "GHL", "Zapier", "n8n", "Hyros", "beehiiv", "Slack", "Zoom",
+             "Typeform", "ClickUp", "Gmail", "webhook", "pipeline", "opt-in", "funnel")
+
+
 @dataclass
 class Config:
     # Audio
@@ -46,7 +51,9 @@ class Config:
     # Editable en Ajustes. Se aplica en vivo (sin reiniciar).
     vocabulary: str = ("Claude, Claude Code, Anthropic, ChatGPT, OpenAI, Gemini, Cursor, "
                        "GitHub, VS Code, Visual Studio Code, Python, JavaScript, TypeScript, "
-                       "React, Node, npm, Docker, Git, API, Whisper, Wispr Flow, PowerShell, Linux")
+                       "React, Node, npm, Docker, Git, API, Whisper, Wispr Flow, PowerShell, Linux, "
+                       + ", ".join(_TERMS_V1))
+    vocab_v: int = 1               # 1 = ya se sumaron _TERMS_V1 al vocabulario guardado (ver _load)
 
     # Limpieza IA (opcional, off por defecto)
     cleanup_enabled: bool = False
@@ -97,6 +104,12 @@ class Config:
                 # v1.3.7: el dueño pidió "el más barato y el más rápido"; quien tenía el de antes
                 # (3.8 Flash, ~3-5 s) pasa una vez al nuevo. Después manda lo que elija en Ajustes.
                 self.ai_model = type(self).ai_model
+            if "vocab_v" not in data:
+                # v1.3.12: se suman una vez (solo los que falten) a tu vocabulario guardado
+                have = {t.strip().lower() for t in self.vocabulary.split(",")}
+                extra = [t for t in _TERMS_V1 if t.lower() not in have]
+                if extra:
+                    self.vocabulary = ", ".join([self.vocabulary.strip(" ,")] + extra).strip(" ,")
             if "pc_role" not in data and data.get("remote_role") in ("main", "terminal"):
                 self.pc_role = data["remote_role"]   # v1.2.15-16: "off" era solo el default, pasa a auto
         except Exception:

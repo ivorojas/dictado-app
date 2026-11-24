@@ -216,6 +216,11 @@ icono.ico      ícono (degradé cian→violeta con barras de onda), generado por
   final (`transcriber.caps_command` + `shout`, aplicado en `main.work`). Vale en español, inglés y modo IA (F8:
   a Gemini va el pedido sin la palabra y se grita su respuesta). También como ÚLTIMA palabra ("me olvidé de
   decirlo al principio"), salvo "con/en/in mayúscula(s)", que es parte de la frase. En el medio no.
+  v1.3.12: acepta "mayus"/"mayús" y como lo escucha mal Whisper ("Mascula", "Máscula"; "Más" solo no). Si el
+  dictado es SOLO esa palabra (`transcriber.caps_only`), copia el texto SELECCIONADO y lo pega en MAYÚSCULAS
+  (sin "!"): en F9 normal copia al cortar; en F8 usa la selección ya copiada; con Cruce lo hace la PC donde
+  pega ({"t":"text","upper":true}). Vocabulario: `config._TERMS_V1` (HubSpot, GHL, Zapier...) se suma una vez
+  a lo guardado (`vocab_v`), porque escribía "hotspot" en vez de HubSpot.
 - **No usa la nube ni IA** para el dictado normal. Cleanup Gemini (cleaner.py) existe pero está OFF y oculto.
 - **MODO IA (v1.3.0, lo pidió el dueño)**: `ai.py`. Mientras grabás, la tecla `config.ai_hotkey` (F10; opciones
   F10/F8/F11/F7, globalkey.AI_OPTIONS) activa el modo IA en ESE dictado: se copia el texto seleccionado
