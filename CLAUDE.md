@@ -209,6 +209,12 @@ icono.ico      ícono (degradé cian→violeta con barras de onda), generado por
   en la Vega 7 del 5600G: 5 s la 1ra pasada y después Windows reseteó la GPU (TDR, 887A0006). En la notebook
   esa GPU maneja la pantalla → parpadeo negro. whisper.cpp+Vulkan no se probó: no hay binarios Windows y
   compilar pide Windows SDK + Vulkan SDK (instalación con admin).
+- **GPU trabada al volver de suspender (v1.3.13)**: a veces CUDA queda roto en el proceso ("CUDA failed with
+  error unknown error" en CADA dictado, visto 2026-11-27) y solo vuelve reiniciando la app. Ahora: el watchdog,
+  al detectar el resume, prueba la GPU (`transcriber.healthy`) y si no responde reinicia (`main._restart`). Si
+  igual falla un dictado: guarda el audio en ~/.dictado/pending.npy, avisa, se reinicia y al arrancar lo
+  transcribe, lo deja en Historial y avisa "pegalo con Alt+F1" (`_recover_pending`). Si la GPU sigue rota tras
+  reiniciar, `load` cae a CPU (el warmup ahora está dentro del try).
 - **Primera descarga del modelo**: `_model_path` reintenta (WinError 1314 de symlinks de Hugging Face en
   Windows sin modo desarrollador). Antes, en una PC nueva, ese error hacía caer a CPU aunque hubiera GPU.
 - **"Mayúscula" al principio (v1.3.11, pedido del dueño)**: si la PRIMERA palabra del dictado es "mayúscula(s)"

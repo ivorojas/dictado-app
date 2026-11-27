@@ -104,6 +104,7 @@ def _already_running():
 
 _setup_stdio()
 
+import numpy as np
 import pystray
 from pynput import keyboard as kb
 
@@ -116,9 +117,9 @@ import history
 import looks
 import ui
 from brand import APP_NAME, __version__, make_tray_icon
-from config import Config
+from config import APP_DIR, Config
 from recorder import NBANDS, Recorder
-from transcriber import Transcriber, caps_command, caps_only, is_noise, shout
+from transcriber import Transcriber, caps_command, caps_only, is_gpu_error, is_noise, shout
 from cleaner import Cleaner
 from injector import Injector, capture_foreground, copy_selection, wait_modifiers
 from overlay import Overlay
@@ -206,10 +207,46 @@ def main():
     role = remote.effective_role(config.pc_role, cuda)
     print(f"  Dos PCs (Cruce): {role} (elegido: {config.pc_role})")
 
+    _pending = APP_DIR / "pending.npy"     # el dictado que no se pudo transcribir (la GPU se trabó)
+
+    def _recover_pending():
+        """Al arrancar tras el reinicio por la GPU: transcribe ese dictado y lo deja para pegar."""
+        try:
+            audio = np.load(_pending)
+        except Exception:
+            audio = None
+        _pending.unlink(missing_ok=True)
+        if audio is None or not len(audio):
+            return
+        try:
+            raw = transcriber.transcribe(audio)
+        except Exception as e:
+            if not is_gpu_error(e):
+                raise
+            print("[stt] la GPU sigue sin responder después de reiniciar: sigo en CPU")
+            transcriber.load(force_cpu=True)
+            raw = transcriber.transcribe(audio)
+        if not raw or is_noise(raw):
+            return
+        loud = caps_command(raw)
+        text = shout(loud) if loud is not None else raw
+        history.add(text)
+        print("[stt] dictado recuperado tras reiniciar (quedó en Historial)")
+        for _ in range(40):                  # que el ícono exista para poder avisar
+            if _icon_ref["icon"]:
+                break
+            time.sleep(0.25)
+        _notify(f"Tu dictado de recién ya está listo: pegalo con {globalkey.label(config.copy_hotkey)}.")
+
     def _warmup():
         if role != "terminal":             # la terminal no graba ni transcribe: no carga el modelo
             transcriber.load()
             recorder.warmup()
+            if _pending.exists():
+                try:
+                    _recover_pending()
+                except Exception as e:
+                    print(f"[stt] no pude recuperar el dictado pendiente: {e}")
         history.get()          # de paso, borra lo que ya venció
         _ready.set()
         print("Listo para dictar. ✓" if role != "terminal" else "Listo: dicta con la PC principal. ✓")
@@ -457,7 +494,18 @@ def main():
                         _notify("No se pudo pegar. El texto quedó en Ajustes → Historial.")
                 except Exception as e:
                     print(f"[error] {e}")
-                    _fail()
+                    if is_gpu_error(e) and transcriber.device == "GPU":
+                        # la placa de video se trabó (pasa al volver de suspender) y no vuelve sin
+                        # reiniciar: se guarda el audio, se reinicia sola y al volver lo transcribe
+                        try:
+                            np.save(_pending, audio)
+                        except Exception as e2:
+                            print(f"[error] no pude guardar el audio: {e2}")
+                        _fail("La placa de video dejó de responder: Dictado App se reinicia sola y tu "
+                              "dictado va a quedar listo para pegar en unos segundos.")
+                        overlay.root.after(1500, lambda: _restart("la GPU dejó de responder"))
+                    else:
+                        _fail()
                 finally:
                     _busy.clear()
                     _show("hidden")
@@ -666,6 +714,17 @@ def main():
                 _arm_hotkey()
                 if not recorder.is_recording:
                     recorder.refresh()
+                # al volver de suspender la GPU a veces queda trabada (CUDA "unknown error" en cada
+                # dictado): se prueba ya y, si no responde, se reinicia antes de que dictes
+                if role != "terminal" and _ready.is_set() and not recorder.is_recording \
+                        and not _busy.is_set():
+                    _busy.set()
+                    try:
+                        ok = transcriber.healthy()
+                    finally:
+                        _busy.clear()
+                    if not ok:
+                        overlay.root.after(0, lambda: _restart("la GPU no respondía al volver de suspender"))
     threading.Thread(target=_watchdog, daemon=True).start()
 
     def _hotkey_changed():
@@ -787,10 +846,10 @@ def main():
                 _ready.set()
         threading.Thread(target=reload, daemon=True).start()
 
-    def _restart(_role=None):
-        """Cambiar el papel de Dos PCs cambia qué se carga al arrancar: se reinicia sola. Suelta
-        los atajos y el mutex ANTES de abrir la nueva, así ella los puede tomar."""
-        print("[salida] reinicio para aplicar el cambio de Dos PCs")
+    def _restart(why=None):
+        """Se reinicia sola (cambio de papel de Dos PCs, GPU trabada). Suelta los atajos y el
+        mutex ANTES de abrir la nueva, así ella los puede tomar."""
+        print(f"[salida] reinicio: {why or 'cambio de Dos PCs'}")
         open_key.stop()
         copy_key.stop()
         ai_key.stop()

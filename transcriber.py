@@ -64,6 +64,11 @@ _CAPS_END = re.compile(r"[\s,.:;!¡?-]*\b" + _WORD + r"[\s.!?]*$", re.I)
 _NOT_CMD = {"en", "con", "la", "las", "una", "de", "a", "in", "with", "the", "all"}
 
 
+def is_gpu_error(e) -> bool:
+    s = str(e).lower()
+    return "cuda" in s or "cublas" in s or "cudnn" in s
+
+
 def caps_only(text: str) -> bool:
     """True si el dictado es SOLO "mayúscula" (o "mayus"...): pasar a mayúsculas lo seleccionado."""
     return bool(_CAPS_ONLY.match(text))
@@ -171,16 +176,17 @@ class Transcriber:
         self._model = None
         self.device = "GPU"
 
-    def load(self):
+    def load(self, force_cpu=False):
         from faster_whisper import WhisperModel
         dev, comp = self.config.whisper_device, self.config.whisper_compute
         print(f"  STT: {self.config.whisper_model} | {dev.upper()} {comp}")
         path = _model_path(self.config.whisper_model)
         try:
-            if dev != "cuda":
-                raise RuntimeError(f"device={dev}")
+            if dev != "cuda" or force_cpu:
+                raise RuntimeError(f"device={'cpu' if force_cpu else dev}")
             self._model = WhisperModel(path, device=dev, compute_type=comp)
             self.device = "GPU"
+            self._warm()                     # si la GPU no responde, falla acá y cae a CPU
         except Exception as e:
             # Sin NVIDIA (AMD, Intel, notebooks): CPU int8 con todos los hilos (faster-whisper
             # usa 4 por defecto; medido en un Ryzen de 6 núcleos: 12 hilos > 6 > 4).
@@ -189,9 +195,23 @@ class Transcriber:
             self._model = WhisperModel(path, device="cpu", compute_type="int8", cpu_threads=threads)
             self._model.model = _EsEnOnly(self._model.model)
             self.device = "CPU"
-        # warmup
+            self._warm()
+
+    def _warm(self):
         silence = np.zeros(self.config.sample_rate, dtype=np.float32)
-        list(self._model.transcribe(silence, language=self.config.whisper_language or None)[0])
+        list(self._model.transcribe(silence, language=self.config.whisper_language or "es")[0])
+
+    def healthy(self):
+        """False si la placa de video dejó de responder (pasa a veces al volver de suspender:
+        "CUDA failed with error unknown error" en cada dictado hasta reiniciar la app)."""
+        if self.device != "GPU" or self._model is None:
+            return True
+        try:
+            self._warm()
+            return True
+        except Exception as e:
+            print(f"[stt] la GPU no responde: {e}")
+            return not is_gpu_error(e)
 
     def transcribe(self, audio: np.ndarray) -> str:
         sr = self.config.sample_rate
